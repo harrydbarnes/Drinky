@@ -340,9 +340,9 @@
     const name = dom.setup.nameInput.value.trim();
     const passcode = dom.setup.passcodeInput.value.trim();
 
-    if (!name) { dom.setup.nameInput.classList.add('shake'); setTimeout(() => dom.setup.nameInput.classList.remove('shake'), 400); return; }
-    if (!/^\d{3}$/.test(passcode)) { dom.setup.passcodeInput.classList.add('shake'); setTimeout(() => dom.setup.passcodeInput.classList.remove('shake'), 400); return; }
-    if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) { dom.setup.nameInput.classList.add('shake'); setTimeout(() => dom.setup.nameInput.classList.remove('shake'), 400); return; }
+    if (!name) { shakeElement(dom.setup.nameInput); return; }
+    if (!/^\d{3}$/.test(passcode)) { shakeElement(dom.setup.passcodeInput); return; }
+    if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) { shakeElement(dom.setup.nameInput); return; }
 
     state.players.push({ name, passcode, drinks: 0, tasks: [] });
     dom.setup.nameInput.value = '';
@@ -540,8 +540,7 @@
     const pin = dom.taskhub.passcodeInput.value.trim();
     const player = state.players.find(p => p.passcode === pin);
     if (!player) {
-      dom.taskhub.passcodeInput.classList.add('shake');
-      setTimeout(() => dom.taskhub.passcodeInput.classList.remove('shake'), 400);
+      shakeElement(dom.taskhub.passcodeInput);
       return;
     }
 
@@ -549,17 +548,14 @@
     dom.taskhub.content.style.display = 'block';
     dom.taskhub.playerName.textContent = `${player.name}'s Tasks`;
 
-    // Pending secret missions
-    const pending = player.tasks.filter(t => t.type === 'secret' && t.status === 'done');
+    const secretsDone = player.tasks.filter(t => t.type === 'secret' && t.status === 'done');
     const allDone = player.tasks.filter(t => t.status === 'done');
-    const allSkipped = player.tasks.filter(t => t.status === 'skipped');
-    const secretsPending = player.tasks.filter(t => t.type === 'secret' && t.status === 'done');
 
-    // Show secret missions (completed to prove)
-    renderTaskList(dom.taskhub.pendingList, secretsPending, '🤫');
-    dom.taskhub.pendingEmpty.style.display = secretsPending.length === 0 ? 'block' : 'none';
+    // Show completed secret missions (to prove they were done)
+    renderTaskList(dom.taskhub.pendingList, secretsDone, '🤫');
+    dom.taskhub.pendingEmpty.style.display = secretsDone.length === 0 ? 'block' : 'none';
 
-    // Show all completed
+    // Show all completed tasks
     renderTaskList(dom.taskhub.doneList, allDone, '✅');
     dom.taskhub.doneEmpty.style.display = allDone.length === 0 ? 'block' : 'none';
 
@@ -627,6 +623,11 @@
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function shakeElement(el) {
+    el.classList.add('shake');
+    setTimeout(() => el.classList.remove('shake'), 400);
   }
 
   // ─── Init ────────────────────────────────────────────────────
