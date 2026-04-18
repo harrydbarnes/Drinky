@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f0c29">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Drinky 🍻</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Floating Emoji Container -->
+  <div id="emoji-container" aria-hidden="true"></div>
+  <!-- Confetti Container -->
+  <div id="confetti-container" aria-hidden="true"></div>
+
+  <!-- ==================== SETUP SCREEN ==================== -->
+  <section id="screen-setup" class="screen active">
+    <div class="screen-content">
+      <div class="logo-area">
+        <h1 class="logo">🍻 Drinky</h1>
+        <p class="tagline">The Ultimate Drinking Game</p>
+      </div>
+
+      <div class="card glass">
+        <h2>Add Players</h2>
+        <div class="input-row">
+          <input type="text" id="player-name" placeholder="Player name" maxlength="20" autocomplete="off">
+          <input type="tel" id="player-passcode" placeholder="3-digit PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
+          <button id="btn-add-player" class="btn btn-accent" aria-label="Add player">+</button>
+        </div>
+        <ul id="player-list" class="player-list"></ul>
+      </div>
+
+      <div class="card glass">
+        <h2>Settings</h2>
+        <div class="setting-group">
+          <label>Difficulty</label>
+          <div class="pill-group" id="difficulty-pills">
+            <button class="pill active" data-value="easy">😊 Easy</button>
+            <button class="pill" data-value="medium">😏 Medium</button>
+            <button class="pill" data-value="hard">🔥 Hard</button>
+            <button class="pill" data-value="extreme">💀 Extreme</button>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label>Adventurousness</label>
+          <div class="pill-group" id="adventure-pills">
+            <button class="pill active" data-value="mild">🌸 Mild</button>
+            <button class="pill" data-value="spicy">🌶️ Spicy</button>
+            <button class="pill" data-value="wild">🤪 Wild</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-start-game" class="btn btn-primary btn-lg" disabled>
+        Start Game 🎉
+      </button>
+    </div>
+  </section>
+
+  <!-- ==================== GAME SCREEN ==================== -->
+  <section id="screen-game" class="screen">
+    <div class="screen-content">
+      <!-- Pass Phone Sub-screen -->
+      <div id="game-pass" class="game-phase">
+        <div class="pass-phone-card glass">
+          <div class="pass-emoji">📱</div>
+          <h2>Pass the phone to</h2>
+          <p class="player-highlight" id="pass-player-name"></p>
+          <button id="btn-im-player" class="btn btn-primary btn-lg"></button>
+        </div>
+      </div>
+
+      <!-- Task Reveal Sub-screen -->
+      <div id="game-task" class="game-phase" style="display:none;">
+        <div class="task-card-wrapper">
+          <div class="task-card glass" id="task-card">
+            <div class="task-card-inner">
+              <!-- Card Front (tap to reveal) -->
+              <div class="task-card-front">
+                <div class="card-front-content">
+                  <span class="tap-emoji">🃏</span>
+                  <p>Tap to reveal your task!</p>
+                </div>
+              </div>
+              <!-- Card Back (task) -->
+              <div class="task-card-back">
+                <div class="task-badge" id="task-badge"></div>
+                <p class="task-text" id="task-text"></p>
+                <div class="task-meta" id="task-meta"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="task-actions" id="task-actions" style="display:none;">
+          <button id="btn-done" class="btn btn-success">✅ Done!</button>
+          <button id="btn-skip" class="btn btn-ghost">⏭️ Skip</button>
+        </div>
+      </div>
+
+      <!-- Round summary -->
+      <div id="game-round-summary" class="game-phase" style="display:none;">
+        <div class="card glass round-summary">
+          <h2>🎊 Round Complete!</h2>
+          <p id="round-summary-text"></p>
+          <button id="btn-next-round" class="btn btn-primary btn-lg">Next Round ➡️</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TASK HUB SCREEN ==================== -->
+  <section id="screen-taskhub" class="screen">
+    <div class="screen-content">
+      <h2 class="screen-title">🔐 Task Hub</h2>
+      <div class="card glass" id="taskhub-login">
+        <p>Enter your 3-digit passcode to view your tasks</p>
+        <div class="passcode-input-row">
+          <input type="tel" id="taskhub-passcode" placeholder="PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
+          <button id="btn-taskhub-login" class="btn btn-accent">Unlock 🔓</button>
+        </div>
+      </div>
+      <div id="taskhub-content" style="display:none;">
+        <h3 id="taskhub-player-name"></h3>
+        <div id="taskhub-missions-pending" class="card glass">
+          <h4>⏳ Pending Secret Missions</h4>
+          <ul id="taskhub-pending-list" class="task-list"></ul>
+          <p class="empty-msg" id="pending-empty" style="display:none;">No pending missions!</p>
+        </div>
+        <div id="taskhub-missions-done" class="card glass">
+          <h4>✅ Completed Tasks</h4>
+          <ul id="taskhub-done-list" class="task-list"></ul>
+          <p class="empty-msg" id="done-empty" style="display:none;">No completed tasks yet!</p>
+        </div>
+        <button id="btn-taskhub-logout" class="btn btn-ghost">Lock 🔒</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== LEADERBOARD SCREEN ==================== -->
+  <section id="screen-leaderboard" class="screen">
+    <div class="screen-content">
+      <h2 class="screen-title">🏆 Leaderboard</h2>
+      <div id="leaderboard-list" class="leaderboard-list"></div>
+    </div>
+  </section>
+
+  <!-- ==================== BOTTOM NAV ==================== -->
+  <nav id="bottom-nav" class="bottom-nav" style="display:none;">
+    <button class="nav-btn active" data-screen="screen-game">
+      <span class="nav-icon">🎮</span>
+      <span class="nav-label">Game</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-taskhub">
+      <span class="nav-icon">🔐</span>
+      <span class="nav-label">Task Hub</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-leaderboard">
+      <span class="nav-icon">🏆</span>
+      <span class="nav-label">Board</span>
+    </button>
+  </nav>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
