@@ -31,7 +31,7 @@
         <div class="input-row">
           <input type="text" id="player-name" placeholder="Player name" maxlength="20" autocomplete="off">
           <input type="tel" id="player-passcode" placeholder="3-digit PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
-          <button id="btn-add-player" class="btn btn-accent" aria-label="Add player">+</button>
+          <button type="button" id="btn-add-player" class="btn btn-accent" aria-label="Add player">+</button>
         </div>
         <ul id="player-list" class="player-list"></ul>
       </div>
@@ -41,23 +41,23 @@
         <div class="setting-group">
           <label>Difficulty</label>
           <div class="pill-group" id="difficulty-pills">
-            <button class="pill active" data-value="easy">😊 Easy</button>
-            <button class="pill" data-value="medium">😏 Medium</button>
-            <button class="pill" data-value="hard">🔥 Hard</button>
-            <button class="pill" data-value="extreme">💀 Extreme</button>
+            <button type="button" class="pill active" data-value="easy">😊 Easy</button>
+            <button type="button" class="pill" data-value="medium">😏 Medium</button>
+            <button type="button" class="pill" data-value="hard">🔥 Hard</button>
+            <button type="button" class="pill" data-value="extreme">💀 Extreme</button>
           </div>
         </div>
         <div class="setting-group">
           <label>Adventurousness</label>
           <div class="pill-group" id="adventure-pills">
-            <button class="pill active" data-value="mild">🌸 Mild</button>
-            <button class="pill" data-value="spicy">🌶️ Spicy</button>
-            <button class="pill" data-value="wild">🤪 Wild</button>
+            <button type="button" class="pill active" data-value="mild">🌸 Mild</button>
+            <button type="button" class="pill" data-value="spicy">🌶️ Spicy</button>
+            <button type="button" class="pill" data-value="wild">🤪 Wild</button>
           </div>
         </div>
       </div>
 
-      <button id="btn-start-game" class="btn btn-primary btn-lg" disabled>
+      <button type="button" id="btn-start-game" class="btn btn-primary btn-lg" disabled>
         Start Game 🎉
       </button>
     </div>
@@ -72,7 +72,7 @@
           <div class="pass-emoji">📱</div>
           <h2>Pass the phone to</h2>
           <p class="player-highlight" id="pass-player-name"></p>
-          <button id="btn-im-player" class="btn btn-primary btn-lg"></button>
+          <button type="button" id="btn-im-player" class="btn btn-primary btn-lg" aria-label="Confirm player"></button>
         </div>
       </div>
 
@@ -98,8 +98,8 @@
           </div>
         </div>
         <div class="task-actions" id="task-actions" style="display:none;">
-          <button id="btn-done" class="btn btn-success">✅ Done!</button>
-          <button id="btn-skip" class="btn btn-ghost">⏭️ Skip</button>
+          <button type="button" id="btn-done" class="btn btn-success">✅ Done!</button>
+          <button type="button" id="btn-skip" class="btn btn-ghost">⏭️ Skip</button>
         </div>
       </div>
 
@@ -108,7 +108,7 @@
         <div class="card glass round-summary">
           <h2>🎊 Round Complete!</h2>
           <p id="round-summary-text"></p>
-          <button id="btn-next-round" class="btn btn-primary btn-lg">Next Round ➡️</button>
+          <button type="button" id="btn-next-round" class="btn btn-primary btn-lg">Next Round ➡️</button>
         </div>
       </div>
     </div>
@@ -122,22 +122,22 @@
         <p>Enter your 3-digit passcode to view your tasks</p>
         <div class="passcode-input-row">
           <input type="tel" id="taskhub-passcode" placeholder="PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
-          <button id="btn-taskhub-login" class="btn btn-accent">Unlock 🔓</button>
+          <button type="button" id="btn-taskhub-login" class="btn btn-accent">Unlock 🔓</button>
         </div>
       </div>
       <div id="taskhub-content" style="display:none;">
-        <h3 id="taskhub-player-name"></h3>
+        <h3 id="taskhub-player-name">Player Tasks</h3>
         <div id="taskhub-missions-pending" class="card glass">
-          <h4>⏳ Pending Secret Missions</h4>
+          <h4>🤫 Secret Missions (Proof)</h4>
           <ul id="taskhub-pending-list" class="task-list"></ul>
-          <p class="empty-msg" id="pending-empty" style="display:none;">No pending missions!</p>
+          <p class="empty-msg" id="pending-empty" style="display:none;">No secret missions yet!</p>
         </div>
         <div id="taskhub-missions-done" class="card glass">
           <h4>✅ Completed Tasks</h4>
           <ul id="taskhub-done-list" class="task-list"></ul>
           <p class="empty-msg" id="done-empty" style="display:none;">No completed tasks yet!</p>
         </div>
-        <button id="btn-taskhub-logout" class="btn btn-ghost">Lock 🔒</button>
+        <button type="button" id="btn-taskhub-logout" class="btn btn-ghost">Lock 🔒</button>
       </div>
     </div>
   </section>
@@ -152,15 +152,15 @@
 
   <!-- ==================== BOTTOM NAV ==================== -->
   <nav id="bottom-nav" class="bottom-nav" style="display:none;">
-    <button class="nav-btn active" data-screen="screen-game">
+    <button type="button" class="nav-btn active" data-screen="screen-game">
       <span class="nav-icon">🎮</span>
       <span class="nav-label">Game</span>
     </button>
-    <button class="nav-btn" data-screen="screen-taskhub">
+    <button type="button" class="nav-btn" data-screen="screen-taskhub">
       <span class="nav-icon">🔐</span>
       <span class="nav-label">Task Hub</span>
     </button>
-    <button class="nav-btn" data-screen="screen-leaderboard">
+    <button type="button" class="nav-btn" data-screen="screen-leaderboard">
       <span class="nav-icon">🏆</span>
       <span class="nav-label">Board</span>
     </button>

@@ -548,12 +548,12 @@
     dom.taskhub.content.style.display = 'block';
     dom.taskhub.playerName.textContent = `${player.name}'s Tasks`;
 
-    const secretsDone = player.tasks.filter(t => t.type === 'secret' && t.status === 'done');
+    const secrets = player.tasks.filter(t => t.type === 'secret');
     const allDone = player.tasks.filter(t => t.status === 'done');
 
-    // Show completed secret missions (to prove they were done)
-    renderTaskList(dom.taskhub.pendingList, secretsDone, '🤫');
-    dom.taskhub.pendingEmpty.style.display = secretsDone.length === 0 ? 'block' : 'none';
+    // Show secret missions (completed ones to prove, pending ones to track)
+    renderTaskList(dom.taskhub.pendingList, secrets, '🤫');
+    dom.taskhub.pendingEmpty.style.display = secrets.length === 0 ? 'block' : 'none';
 
     // Show all completed tasks
     renderTaskList(dom.taskhub.doneList, allDone, '✅');
@@ -566,7 +566,8 @@
     ul.innerHTML = '';
     tasks.forEach(t => {
       const li = document.createElement('li');
-      li.innerHTML = `<span class="task-icon">${icon}</span><span>${escapeHtml(t.text)}</span>`;
+      const statusIcon = t.status === 'done' ? '✅' : t.status === 'skipped' ? '⏭️' : '⏳';
+      li.innerHTML = `<span class="task-icon">${icon}</span><span>${escapeHtml(t.text)}</span><span class="task-icon">${statusIcon}</span>`;
       ul.appendChild(li);
     });
   }
