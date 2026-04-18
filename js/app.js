@@ -220,7 +220,11 @@
   const STORAGE_KEY = 'drinky_state';
 
   function saveState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) { /* quota */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Could not save game state:', e.message);
+    }
   }
 
   function loadState() {
@@ -231,7 +235,9 @@
         state = { ...state, ...parsed };
         return true;
       }
-    } catch (_) { /* corrupt */ }
+    } catch (e) {
+      console.warn('Could not restore game state:', e.message);
+    }
     return false;
   }
 
