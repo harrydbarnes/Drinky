@@ -32,17 +32,21 @@ jobs:
 
       - name: Prepare site artifact
         run: |
+          set -euo pipefail
+          site_dir="$RUNNER_TEMP/site"
+          rm -rf "$site_dir"
+          mkdir -p "$site_dir"
           rsync -av --delete \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='dist/' \
-            ./ dist/
-          touch dist/.nojekyll
+            ./ "$site_dir"/
+          touch "$site_dir/.nojekyll"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: ${{ runner.temp }}/site
 
       - name: Deploy to GitHub Pages
         id: deployment
