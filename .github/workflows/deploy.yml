@@ -32,13 +32,11 @@ jobs:
 
       - name: Prepare site artifact
         run: |
-          mkdir -p dist
-          cp index.html dist/
-          for asset in css js CNAME; do
-            if [ -e "$asset" ]; then
-              cp -R "$asset" dist/
-            fi
-          done
+          rsync -av --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='dist/' \
+            ./ dist/
           touch dist/.nojekyll
 
       - name: Upload artifact
