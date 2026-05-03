@@ -27,11 +27,20 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Prepare site artifact
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp -R css js dist/
+          touch dist/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
