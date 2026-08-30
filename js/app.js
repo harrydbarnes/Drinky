@@ -79,7 +79,7 @@
     { text: "Tell the group about a funny wrong turn or travel mishap; make one up if you prefer.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "truth", drinks: 0 },
     { text: "Without anyone noticing, get someone to use the word 'legendary' without asking them to say it.", type: "secret", difficulty: ["hard"], adventure: ["spicy"], category: "secret", drinks: 0 },
     { text: "Send a 5-second voice note to a friend saying 'Cheers from us', only if you want to; otherwise perform the greeting to the group.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "dare", drinks: 0 },
-    { text: "Vote for the player most likely to lead a spontaneous adventure; they choose the next group pose.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "group", drinks: 0 },
+    { text: "Vote for the player most likely to discover a hidden gem; they choose the next group pose.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "group", drinks: 0 },
     { text: "Dance for 15 seconds, mime it, or take up to 3 sips.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "dare", drinks: 3 },
     { text: "Name 5 landmarks you would like to visit in 10 seconds. If you miss, take 3 sips.", type: "read", difficulty: ["hard"], adventure: ["spicy"], category: "category", drinks: 3 },
     { text: "Without anyone noticing, propose a toast that includes the word 'legendary'.", type: "secret", difficulty: ["hard"], adventure: ["spicy"], category: "secret", drinks: 0 },
