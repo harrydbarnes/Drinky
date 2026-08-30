@@ -164,6 +164,7 @@
     currentTask: null,
     taskRevealed: false,
     usedTaskIndices: [],
+    lastTaskIndex: null,
   };
 
   // ─── DOM References ─────────────────────────────────────────
@@ -315,6 +316,11 @@
     const usedTaskIndices = Array.isArray(candidate.usedTaskIndices)
       ? [...new Set(candidate.usedTaskIndices.filter(Number.isInteger).filter(index => index >= 0 && index < TASK_LIBRARY.length))]
       : [];
+    const lastTaskIndex = Number.isInteger(candidate.lastTaskIndex) &&
+      candidate.lastTaskIndex >= 0 &&
+      candidate.lastTaskIndex < TASK_LIBRARY.length
+      ? candidate.lastTaskIndex
+      : null;
 
     let currentTask = normaliseCurrentTask(candidate.currentTask);
     let taskRevealed = candidate.taskRevealed === true;
@@ -345,6 +351,7 @@
       currentTask,
       taskRevealed,
       usedTaskIndices,
+      lastTaskIndex,
     };
   }
 
@@ -527,6 +534,7 @@
     state.currentTask = null;
     state.taskRevealed = false;
     state.usedTaskIndices = [];
+    state.lastTaskIndex = null;
     saveState();
     startGame();
   });
@@ -572,6 +580,9 @@
     dom.game.passPhase.style.display = 'flex';
     dom.game.taskPhase.style.display = 'none';
     dom.game.roundPhase.style.display = 'none';
+    dom.game.taskCard.classList.remove('flipped');
+    dom.game.taskCard.setAttribute('aria-label', 'Reveal task');
+    dom.game.taskActions.style.display = 'none';
     dom.game.passPlayerName.textContent = player.name;
     dom.game.imPlayerBtn.textContent = "I'm " + player.name + "! 👋";
     saveState();
@@ -598,7 +609,7 @@
     const filtered = getFilteredTasks();
     if (!filtered.length) return null;
 
-    const previousIndex = currentTask ? currentTask._idx : null;
+    const previousIndex = Number.isInteger(state.lastTaskIndex) ? state.lastTaskIndex : null;
     let available = filtered.filter(task => !state.usedTaskIndices.includes(task._idx));
 
     if (!available.length) {
@@ -609,6 +620,7 @@
 
     const task = available[Math.floor(Math.random() * available.length)];
     state.usedTaskIndices = [...new Set([...state.usedTaskIndices, task._idx])];
+    state.lastTaskIndex = task._idx;
     return task;
   }
 
@@ -776,6 +788,9 @@
     dom.game.passPhase.style.display = 'none';
     dom.game.taskPhase.style.display = 'none';
     dom.game.roundPhase.style.display = 'flex';
+    dom.game.taskCard.classList.remove('flipped');
+    dom.game.taskCard.setAttribute('aria-label', 'Reveal task');
+    dom.game.taskActions.style.display = 'none';
 
     const topDrinker = [...state.players].sort((a, b) => b.drinks - a.drinks)[0];
     if (topDrinker) {
