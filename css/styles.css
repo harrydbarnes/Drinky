@@ -41,6 +41,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100%;
+  min-height: 100dvh;
   height: 100%;
   overflow: hidden;
   position: relative;
@@ -74,6 +75,28 @@ body::after {
   pointer-events: none;
 }
 
+/* ---------- Accessibility helpers ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.form-message {
+  color: var(--accent-2);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: -2px 0 12px;
+}
+
+[hidden] { display: none !important; }
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -104,8 +127,8 @@ body::after {
 .screen-content {
   max-width: 480px;
   margin: 0 auto;
-  padding: 24px 16px;
-  padding-bottom: calc(var(--nav-height) + 32px);
+  padding: calc(32px + env(safe-area-inset-top, 0px)) 16px
+    calc(var(--nav-height) + 32px + env(safe-area-inset-bottom, 0px));
 }
 
 .screen-title {
@@ -378,6 +401,7 @@ input::placeholder { color: var(--text-muted); }
   align-items: center;
   justify-content: center;
   min-height: calc(100vh - var(--nav-height) - 48px);
+  min-height: calc(100dvh - var(--nav-height) - 48px);
   text-align: center;
 }
 
@@ -434,6 +458,11 @@ input::placeholder { color: var(--text-muted); }
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: none;
+}
+
+.task-card:focus-visible {
+  outline: 3px solid var(--accent-3);
+  outline-offset: 4px;
 }
 
 .task-card-inner {
@@ -695,7 +724,7 @@ input::placeholder { color: var(--text-muted); }
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--nav-height);
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
   background: rgba(15, 12, 41, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -789,10 +818,38 @@ input::placeholder { color: var(--text-muted); }
 
 /* ---------- Responsive ---------- */
 @media (min-width: 600px) {
-  .screen-content { padding: 32px 24px; padding-bottom: calc(var(--nav-height) + 48px); }
+  .screen-content {
+    padding: calc(40px + env(safe-area-inset-top, 0px)) 24px
+      calc(var(--nav-height) + 48px + env(safe-area-inset-bottom, 0px));
+  }
   .logo { font-size: 3.5rem; }
   .task-text { font-size: 1.4rem; }
 }
 
 /* Prevent pull-to-refresh on mobile */
 body { overscroll-behavior-y: contain; }
+
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before,
+  .ripple,
+  .floating-emoji,
+  .confetti-piece {
+    animation: none !important;
+  }
+
+  #emoji-container,
+  #confetti-container {
+    display: none;
+  }
+}

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5">
   <meta name="theme-color" content="#0f0c29">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,10 +29,13 @@
       <div class="card glass">
         <h2>Add Players</h2>
         <div class="input-row">
-          <input type="text" id="player-name" placeholder="Player name" maxlength="20" autocomplete="off">
-          <input type="tel" id="player-passcode" placeholder="3-digit PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
+          <label class="sr-only" for="player-name">Player name</label>
+          <input type="text" id="player-name" placeholder="Player name" maxlength="20" autocomplete="off" aria-label="Player name">
+          <label class="sr-only" for="player-passcode">Three-digit player PIN</label>
+          <input type="tel" id="player-passcode" placeholder="3-digit PIN" maxlength="3" pattern="[0-9]{3}" inputmode="numeric" autocomplete="off" aria-label="Three-digit player PIN">
           <button type="button" id="btn-add-player" class="btn btn-accent" aria-label="Add player">+</button>
         </div>
+        <p id="setup-message" class="form-message" role="status" aria-live="polite" hidden></p>
         <ul id="player-list" class="player-list"></ul>
       </div>
 
@@ -41,18 +44,18 @@
         <div class="setting-group">
           <label>Difficulty</label>
           <div class="pill-group" id="difficulty-pills">
-            <button type="button" class="pill active" data-value="easy">😊 Easy</button>
-            <button type="button" class="pill" data-value="medium">😏 Medium</button>
-            <button type="button" class="pill" data-value="hard">🔥 Hard</button>
-            <button type="button" class="pill" data-value="extreme">💀 Extreme</button>
+            <button type="button" class="pill active" data-value="easy" aria-pressed="true">😊 Easy</button>
+            <button type="button" class="pill" data-value="medium" aria-pressed="false">😏 Medium</button>
+            <button type="button" class="pill" data-value="hard" aria-pressed="false">🔥 Hard</button>
+            <button type="button" class="pill" data-value="extreme" aria-pressed="false">💀 Extreme</button>
           </div>
         </div>
         <div class="setting-group">
           <label>Adventurousness</label>
           <div class="pill-group" id="adventure-pills">
-            <button type="button" class="pill active" data-value="mild">🌸 Mild</button>
-            <button type="button" class="pill" data-value="spicy">🌶️ Spicy</button>
-            <button type="button" class="pill" data-value="wild">🤪 Wild</button>
+            <button type="button" class="pill active" data-value="mild" aria-pressed="true">🌸 Mild</button>
+            <button type="button" class="pill" data-value="spicy" aria-pressed="false">🌶️ Spicy</button>
+            <button type="button" class="pill" data-value="wild" aria-pressed="false">🤪 Wild</button>
           </div>
         </div>
       </div>
@@ -79,7 +82,7 @@
       <!-- Task Reveal Sub-screen -->
       <div id="game-task" class="game-phase" style="display:none;">
         <div class="task-card-wrapper">
-          <div class="task-card glass" id="task-card">
+          <div class="task-card glass" id="task-card" role="button" tabindex="0" aria-label="Reveal task">
             <div class="task-card-inner">
               <!-- Card Front (tap to reveal) -->
               <div class="task-card-front">
@@ -91,7 +94,7 @@
               <!-- Card Back (task) -->
               <div class="task-card-back">
                 <div class="task-badge" id="task-badge"></div>
-                <p class="task-text" id="task-text"></p>
+                <p class="task-text" id="task-text" aria-live="polite"></p>
                 <div class="task-meta" id="task-meta"></div>
               </div>
             </div>
@@ -121,14 +124,16 @@
       <div class="card glass" id="taskhub-login">
         <p>Enter your 3-digit passcode to view your tasks</p>
         <div class="passcode-input-row">
-          <input type="tel" id="taskhub-passcode" placeholder="PIN" maxlength="3" pattern="[0-9]{3}" autocomplete="off">
+          <label class="sr-only" for="taskhub-passcode">Three-digit player PIN</label>
+          <input type="tel" id="taskhub-passcode" placeholder="PIN" maxlength="3" pattern="[0-9]{3}" inputmode="numeric" autocomplete="off" aria-label="Three-digit player PIN">
           <button type="button" id="btn-taskhub-login" class="btn btn-accent">Unlock 🔓</button>
         </div>
+        <p id="taskhub-message" class="form-message" role="status" aria-live="polite" hidden></p>
       </div>
       <div id="taskhub-content" style="display:none;">
         <h3 id="taskhub-player-name">Player Tasks</h3>
         <div id="taskhub-missions-pending" class="card glass">
-          <h4>🤫 Secret Missions (Proof)</h4>
+          <h4>🤫 Secret Missions</h4>
           <ul id="taskhub-pending-list" class="task-list"></ul>
           <p class="empty-msg" id="pending-empty" style="display:none;">No secret missions yet!</p>
         </div>

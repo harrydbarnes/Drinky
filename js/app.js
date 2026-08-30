@@ -148,12 +148,21 @@
   const EMOJIS = ['🍻', '🎉', '🥳', '🍺', '🔥', '✨', '💃', '🕺', '🎊', '🍹', '🥂', '🤩', '🌟', '🎯', '🏆', '💥'];
 
   // ─── State ───────────────────────────────────────────────────
+  const STATE_VERSION = 2;
+  const VALID_DIFFICULTIES = ['easy', 'medium', 'hard', 'extreme'];
+  const VALID_ADVENTURES = ['mild', 'spicy', 'wild'];
+  const GAME_PHASES = ['pass', 'task', 'summary'];
+
   let state = {
-    players: [],            // { name, passcode, drinks, tasks: [{ text, type, status, category }] }
+    stateVersion: STATE_VERSION,
+    players: [],            // { id, name, passcode, drinks, tasks: [{ text, type, status, category }] }
     settings: { difficulty: 'easy', adventure: 'mild' },
     currentPlayerIndex: 0,
     round: 1,
     gameStarted: false,
+    phase: 'pass',
+    currentTask: null,
+    taskRevealed: false,
     usedTaskIndices: [],
   };
 
@@ -171,6 +180,7 @@
     setup: {
       nameInput: $('#player-name'),
       passcodeInput: $('#player-passcode'),
+      message: $('#setup-message'),
       addBtn: $('#btn-add-player'),
       playerList: $('#player-list'),
       startBtn: $('#btn-start-game'),
@@ -197,6 +207,7 @@
       loginSection: $('#taskhub-login'),
       passcodeInput: $('#taskhub-passcode'),
       loginBtn: $('#btn-taskhub-login'),
+      message: $('#taskhub-message'),
       content: $('#taskhub-content'),
       playerName: $('#taskhub-player-name'),
       pendingList: $('#taskhub-pending-list'),
@@ -230,21 +241,124 @@
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        state = { ...state, ...parsed };
-        return true;
-      }
+      if (!raw) return false;
+
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return false;
+
+      state = normaliseState(parsed);
+      saveState();
+      return true;
     } catch (e) {
       console.warn('Could not restore game state:', e.message);
     }
     return false;
   }
 
+  function createPlayerId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'player-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  function normaliseTaskRecord(task) {
+    if (!task || typeof task !== 'object' || typeof task.text !== 'string') return null;
+
+    return {
+      taskIndex: Number.isInteger(task.taskIndex) ? task.taskIndex : null,
+      text: task.text.slice(0, 500),
+      type: task.type === 'secret' ? 'secret' : 'read',
+      status: ['pending', 'done', 'skipped'].includes(task.status) ? task.status : 'done',
+      category: typeof task.category === 'string' ? task.category : 'other',
+      drinks: Number.isFinite(task.drinks) ? Math.max(0, Math.floor(task.drinks)) : 0,
+      round: Number.isInteger(task.round) ? Math.max(1, task.round) : null,
+    };
+  }
+
+  function normalisePlayer(player) {
+    if (!player || typeof player !== 'object') return null;
+
+    const name = typeof player.name === 'string' ? player.name.trim().slice(0, 20) : '';
+    const passcode = typeof player.passcode === 'string' ? player.passcode.trim() : '';
+    if (!name || !/^\d{3}$/.test(passcode)) return null;
+
+    return {
+      id: typeof player.id === 'string' && player.id ? player.id : createPlayerId(),
+      name,
+      passcode,
+      drinks: Number.isFinite(player.drinks) ? Math.max(0, Math.floor(player.drinks)) : 0,
+      tasks: Array.isArray(player.tasks) ? player.tasks.map(normaliseTaskRecord).filter(Boolean) : [],
+    };
+  }
+
+  function normaliseCurrentTask(task) {
+    if (!task || typeof task !== 'object' || !Number.isInteger(task._idx)) return null;
+
+    const source = TASK_LIBRARY[task._idx];
+    if (!source || task.text !== source.text) return null;
+    return { ...source, _idx: task._idx };
+  }
+
+  function normaliseState(candidate) {
+    const rawPlayers = Array.isArray(candidate.players) ? candidate.players : [];
+    const players = rawPlayers.map(normalisePlayer).filter(Boolean);
+    const rawSettings = candidate.settings && typeof candidate.settings === 'object' ? candidate.settings : {};
+    const difficulty = VALID_DIFFICULTIES.includes(rawSettings.difficulty) ? rawSettings.difficulty : 'easy';
+    const adventure = VALID_ADVENTURES.includes(rawSettings.adventure) ? rawSettings.adventure : 'mild';
+
+    let phase = GAME_PHASES.includes(candidate.phase) ? candidate.phase : 'pass';
+    const gameStarted = candidate.gameStarted === true && players.length >= 2;
+    let currentPlayerIndex = Number.isInteger(candidate.currentPlayerIndex) ? candidate.currentPlayerIndex : 0;
+    currentPlayerIndex = Math.max(0, Math.min(Math.max(0, players.length - 1), currentPlayerIndex));
+
+    const usedTaskIndices = Array.isArray(candidate.usedTaskIndices)
+      ? [...new Set(candidate.usedTaskIndices.filter(Number.isInteger).filter(index => index >= 0 && index < TASK_LIBRARY.length))]
+      : [];
+
+    let currentTask = normaliseCurrentTask(candidate.currentTask);
+    let taskRevealed = candidate.taskRevealed === true;
+
+    if (!gameStarted) {
+      phase = 'pass';
+      currentPlayerIndex = 0;
+      currentTask = null;
+      taskRevealed = false;
+    } else if (phase === 'task' && !currentTask) {
+      phase = 'pass';
+      taskRevealed = false;
+    } else if (phase !== 'task') {
+      currentTask = null;
+      taskRevealed = false;
+    }
+
+    if (phase === 'summary') currentPlayerIndex = 0;
+
+    return {
+      stateVersion: STATE_VERSION,
+      players,
+      settings: { difficulty, adventure },
+      currentPlayerIndex,
+      round: Number.isInteger(candidate.round) ? Math.max(1, candidate.round) : 1,
+      gameStarted,
+      phase,
+      currentTask,
+      taskRevealed,
+      usedTaskIndices,
+    };
+  }
+
   // ─── Effects ─────────────────────────────────────────────────
+  function reducedMotionEnabled() {
+    return typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   function spawnFloatingEmojis(count = 12) {
+    if (reducedMotionEnabled() || !dom.emojiContainer) return;
+
     const container = dom.emojiContainer;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < Math.min(count, 24); i++) {
       const el = document.createElement('span');
       el.className = 'floating-emoji';
       el.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
@@ -259,9 +373,11 @@
   }
 
   function spawnConfetti(count = 40) {
+    if (reducedMotionEnabled() || !dom.confettiContainer) return;
+
     const container = dom.confettiContainer;
     const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#00d2d3', '#54a0ff', '#1dd1a1', '#5f27cd'];
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < Math.min(count, 50); i++) {
       const el = document.createElement('div');
       el.className = 'confetti-piece';
       el.style.left = Math.random() * 100 + '%';
@@ -277,6 +393,8 @@
   }
 
   function addRipple(btn, e) {
+    if (reducedMotionEnabled() || !btn || !e) return;
+
     const ripple = document.createElement('span');
     ripple.className = 'ripple';
     const rect = btn.getBoundingClientRect();
@@ -288,9 +406,8 @@
     setTimeout(() => ripple.remove(), 600);
   }
 
-  // Attach ripple to all buttons
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn');
+    const btn = e.target && e.target.closest ? e.target.closest('.btn') : null;
     if (btn) addRipple(btn, e);
   });
 
@@ -310,6 +427,7 @@
       const screenId = btn.dataset.screen;
       showScreen(screenId.replace('screen-', ''));
       if (screenId === 'screen-leaderboard') renderLeaderboard();
+      if (screenId === 'screen-game' && state.gameStarted) renderGamePhase();
     });
   });
 
@@ -346,11 +464,29 @@
     const name = dom.setup.nameInput.value.trim();
     const passcode = dom.setup.passcodeInput.value.trim();
 
-    if (!name) { shakeElement(dom.setup.nameInput); return; }
-    if (!/^\d{3}$/.test(passcode)) { shakeElement(dom.setup.passcodeInput); return; }
-    if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) { shakeElement(dom.setup.nameInput); return; }
+    setMessage(dom.setup.message, '');
+    if (!name) {
+      setMessage(dom.setup.message, 'Enter a player name.');
+      shakeElement(dom.setup.nameInput);
+      return;
+    }
+    if (!/^\d{3}$/.test(passcode)) {
+      setMessage(dom.setup.message, 'PINs must contain exactly three digits.');
+      shakeElement(dom.setup.passcodeInput);
+      return;
+    }
+    if (state.players.some(player => player.name.toLowerCase() === name.toLowerCase())) {
+      setMessage(dom.setup.message, 'Each player needs a unique name.');
+      shakeElement(dom.setup.nameInput);
+      return;
+    }
+    if (state.players.some(player => player.passcode === passcode)) {
+      setMessage(dom.setup.message, 'Each player needs a unique PIN.');
+      shakeElement(dom.setup.passcodeInput);
+      return;
+    }
 
-    state.players.push({ name, passcode, drinks: 0, tasks: [] });
+    state.players.push({ id: createPlayerId(), name, passcode, drinks: 0, tasks: [] });
     dom.setup.nameInput.value = '';
     dom.setup.passcodeInput.value = '';
     dom.setup.nameInput.focus();
@@ -366,8 +502,12 @@
   function setupPills(container, settingKey) {
     container.querySelectorAll('.pill').forEach(pill => {
       pill.addEventListener('click', () => {
-        container.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        container.querySelectorAll('.pill').forEach(item => {
+          item.classList.remove('active');
+          item.setAttribute('aria-pressed', 'false');
+        });
         pill.classList.add('active');
+        pill.setAttribute('aria-pressed', 'true');
         state.settings[settingKey] = pill.dataset.value;
         saveState();
       });
@@ -383,158 +523,281 @@
     state.gameStarted = true;
     state.currentPlayerIndex = 0;
     state.round = 1;
+    state.phase = 'pass';
+    state.currentTask = null;
+    state.taskRevealed = false;
     state.usedTaskIndices = [];
     saveState();
     startGame();
   });
 
   // ─── Game Logic ─────────────────────────────────────────────
+  let currentTask = null;
+  let revealTimer = null;
+  let completingTask = false;
+
   function startGame() {
     dom.nav.bar.style.display = 'flex';
     showScreen('game');
-    showPassPhase();
+    renderGamePhase();
   }
 
   function getCurrentPlayer() {
-    return state.players[state.currentPlayerIndex];
+    return state.players[state.currentPlayerIndex] || null;
+  }
+
+  function renderGamePhase() {
+    if (!state.gameStarted) return;
+
+    if (state.phase === 'task' && state.currentTask) {
+      renderTaskPhase();
+    } else if (state.phase === 'summary') {
+      showRoundSummary({ celebrate: false });
+    } else {
+      showPassPhase();
+    }
   }
 
   function showPassPhase() {
+    clearTimeout(revealTimer);
+    revealTimer = null;
+    currentTask = null;
+    state.currentTask = null;
+    state.taskRevealed = false;
+    state.phase = 'pass';
+
     const player = getCurrentPlayer();
+    if (!player) return;
+
     dom.game.passPhase.style.display = 'flex';
     dom.game.taskPhase.style.display = 'none';
     dom.game.roundPhase.style.display = 'none';
-
     dom.game.passPlayerName.textContent = player.name;
-    dom.game.imPlayerBtn.textContent = `I'm ${player.name}! 👋`;
+    dom.game.imPlayerBtn.textContent = "I'm " + player.name + "! 👋";
+    saveState();
   }
 
   dom.game.imPlayerBtn.addEventListener('click', () => {
     showTaskPhase();
   });
 
-  let currentTask = null;
-
   function getFilteredTasks() {
-    const diff = state.settings.difficulty;
-    const adv = state.settings.adventure;
-
-    // Adventure levels are cumulative: wild includes spicy & mild, spicy includes mild
-    const adventureLevels = { mild: ['mild'], spicy: ['mild', 'spicy'], wild: ['mild', 'spicy', 'wild'] };
-    const allowedAdventure = adventureLevels[adv] || ['mild'];
-
-    // Difficulty levels are cumulative upward: hard includes easy & medium & hard
-    const difficultyLevels = { easy: ['easy'], medium: ['easy', 'medium'], hard: ['easy', 'medium', 'hard'], extreme: ['easy', 'medium', 'hard', 'extreme'] };
-    const allowedDifficulty = difficultyLevels[diff] || ['easy'];
+    const difficultyRanks = { easy: 0, medium: 1, hard: 2, extreme: 3 };
+    const adventureRanks = { mild: 0, spicy: 1, wild: 2 };
+    const selectedDifficulty = difficultyRanks[state.settings.difficulty] ?? 0;
+    const selectedAdventure = adventureRanks[state.settings.adventure] ?? 0;
 
     return TASK_LIBRARY.map((task, idx) => ({ ...task, _idx: idx }))
-      .filter(t =>
-        t.difficulty.some(d => allowedDifficulty.includes(d)) &&
-        t.adventure.some(a => allowedAdventure.includes(a))
+      .filter(task =>
+        task.difficulty.some(level => difficultyRanks[level] <= selectedDifficulty) &&
+        task.adventure.some(level => adventureRanks[level] <= selectedAdventure)
       );
   }
 
   function pickTask() {
     const filtered = getFilteredTasks();
-    // Prefer unused tasks
-    let available = filtered.filter(t => !state.usedTaskIndices.includes(t._idx));
-    if (available.length === 0) {
+    if (!filtered.length) return null;
+
+    const previousIndex = currentTask ? currentTask._idx : null;
+    let available = filtered.filter(task => !state.usedTaskIndices.includes(task._idx));
+
+    if (!available.length) {
       state.usedTaskIndices = [];
-      available = filtered;
+      available = filtered.filter(task => task._idx !== previousIndex);
+      if (!available.length) available = filtered;
     }
+
     const task = available[Math.floor(Math.random() * available.length)];
-    state.usedTaskIndices.push(task._idx);
+    state.usedTaskIndices = [...new Set([...state.usedTaskIndices, task._idx])];
     return task;
   }
 
   function showTaskPhase() {
+    const player = getCurrentPlayer();
+    if (!player) return;
+
+    currentTask = pickTask();
+    if (!currentTask) {
+      setMessage(dom.setup.message, 'No tasks match these settings. Please choose a different difficulty or adventurousness level.');
+      return;
+    }
+
+    state.currentTask = currentTask;
+    state.phase = 'task';
+    state.taskRevealed = false;
+    if (currentTask.type === 'secret') ensurePendingTask(player, currentTask);
+    renderTaskPhase();
+    saveState();
+  }
+
+  function renderTaskPhase() {
+    const task = state.currentTask;
+    if (!task) {
+      showPassPhase();
+      return;
+    }
+
+    currentTask = task;
     dom.game.passPhase.style.display = 'none';
     dom.game.taskPhase.style.display = 'flex';
     dom.game.roundPhase.style.display = 'none';
 
-    currentTask = pickTask();
+    dom.game.taskCard.classList.toggle('flipped', state.taskRevealed);
+    dom.game.taskCard.setAttribute('aria-label', state.taskRevealed ? 'Task revealed' : 'Reveal task');
 
-    // Reset card
-    dom.game.taskCard.classList.remove('flipped');
-    dom.game.taskActions.style.display = 'none';
-
-    // Set task content
-    const isSecret = currentTask.type === 'secret';
+    const isSecret = task.type === 'secret';
     dom.game.taskBadge.textContent = isSecret ? '🤫 Secret Mission' : '📢 Read Aloud';
     dom.game.taskBadge.className = 'task-badge ' + (isSecret ? 'secret-mission' : 'read-aloud');
-    dom.game.taskText.textContent = currentTask.text;
-    dom.game.taskMeta.textContent = currentTask.drinks > 0 ? `🍺 ${currentTask.drinks} sip${currentTask.drinks > 1 ? 's' : ''}` : '';
-
-    saveState();
+    dom.game.taskText.textContent = task.text;
+    dom.game.taskMeta.textContent = task.drinks > 0
+      ? '🍺 ' + task.drinks + ' sip' + (task.drinks > 1 ? 's' : '')
+      : '';
+    dom.game.taskActions.style.display = state.taskRevealed ? 'flex' : 'none';
   }
 
-  // Card flip
-  dom.game.taskCard.addEventListener('click', () => {
-    if (dom.game.taskCard.classList.contains('flipped')) return;
-    dom.game.taskCard.classList.add('flipped');
-    spawnFloatingEmojis(10);
+  function revealTask() {
+    if (state.phase !== 'task' || !currentTask || state.taskRevealed) return;
 
-    setTimeout(() => {
-      dom.game.taskActions.style.display = 'flex';
-    }, 500);
+    state.taskRevealed = true;
+    dom.game.taskCard.classList.add('flipped');
+    dom.game.taskCard.setAttribute('aria-label', 'Task revealed');
+    spawnFloatingEmojis(10);
+    saveState();
+
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(() => {
+      if (state.phase === 'task' && state.taskRevealed) {
+        dom.game.taskActions.style.display = 'flex';
+      }
+    }, reducedMotionEnabled() ? 0 : 600);
+  }
+
+  dom.game.taskCard.addEventListener('click', revealTask);
+  dom.game.taskCard.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      revealTask();
+    }
   });
 
-  // Done
-  dom.game.doneBtn.addEventListener('click', () => {
-    const player = getCurrentPlayer();
-    player.tasks.push({
-      text: currentTask.text,
-      type: currentTask.type,
-      status: 'done',
-      category: currentTask.category,
-    });
-    if (currentTask.drinks > 0) {
-      player.drinks += currentTask.drinks;
+  function createTaskRecord(task, status) {
+    return {
+      taskIndex: Number.isInteger(task._idx) ? task._idx : null,
+      text: task.text,
+      type: task.type === 'secret' ? 'secret' : 'read',
+      status,
+      category: task.category || 'other',
+      drinks: Number.isFinite(task.drinks) ? Math.max(0, Math.floor(task.drinks)) : 0,
+      round: state.round,
+    };
+  }
+
+  function ensurePendingTask(player, task) {
+    if (task.type !== 'secret') return;
+
+    const alreadyPending = player.tasks.some(record =>
+      record.status === 'pending' &&
+      record.taskIndex === task._idx &&
+      record.text === task.text
+    );
+    if (!alreadyPending) player.tasks.push(createTaskRecord(task, 'pending'));
+  }
+
+  function completeCurrentTask(status) {
+    if (!['done', 'skipped'].includes(status) ||
+        state.phase !== 'task' ||
+        !currentTask ||
+        !state.taskRevealed ||
+        completingTask) {
+      return false;
     }
+
+    const player = getCurrentPlayer();
+    if (!player) return false;
+
+    completingTask = true;
+    const task = currentTask;
+    const pendingRecord = task.type === 'secret'
+      ? player.tasks.find(record =>
+          record.status === 'pending' &&
+          record.taskIndex === task._idx &&
+          record.text === task.text
+        )
+      : null;
+
+    if (pendingRecord) {
+      pendingRecord.status = status;
+      pendingRecord.round = state.round;
+    } else {
+      player.tasks.push(createTaskRecord(task, status));
+    }
+
+    if (status === 'done' && task.drinks > 0) {
+      player.drinks += task.drinks;
+    }
+
+    state.currentTask = null;
+    currentTask = null;
+    state.taskRevealed = false;
+    advancePlayer();
+    completingTask = false;
+    return true;
+  }
+
+  dom.game.doneBtn.addEventListener('click', () => {
+    if (!completeCurrentTask('done')) return;
     spawnConfetti(30);
     spawnFloatingEmojis(8);
-    advancePlayer();
   });
 
-  // Skip
   dom.game.skipBtn.addEventListener('click', () => {
-    const player = getCurrentPlayer();
-    player.tasks.push({
-      text: currentTask.text,
-      type: currentTask.type,
-      status: 'skipped',
-      category: currentTask.category,
-    });
-    advancePlayer();
+    completeCurrentTask('skipped');
   });
 
   function advancePlayer() {
     state.currentPlayerIndex++;
     if (state.currentPlayerIndex >= state.players.length) {
+      state.currentPlayerIndex = 0;
       showRoundSummary();
     } else {
-      saveState();
       showPassPhase();
     }
   }
 
-  function showRoundSummary() {
+  function showRoundSummary({ celebrate = true } = {}) {
+    clearTimeout(revealTimer);
+    revealTimer = null;
+    currentTask = null;
+    state.currentTask = null;
+    state.taskRevealed = false;
+    state.phase = 'summary';
+    state.currentPlayerIndex = 0;
+
     dom.game.passPhase.style.display = 'none';
     dom.game.taskPhase.style.display = 'none';
     dom.game.roundPhase.style.display = 'flex';
 
     const topDrinker = [...state.players].sort((a, b) => b.drinks - a.drinks)[0];
-    dom.game.roundSummaryText.textContent = `Round ${state.round} complete! ${topDrinker.name} is leading with ${topDrinker.drinks} sip${topDrinker.drinks !== 1 ? 's' : ''}. Keep it going!`;
+    if (topDrinker) {
+      dom.game.roundSummaryText.textContent =
+        'Round ' + state.round + ' complete! ' + topDrinker.name +
+        ' is leading with ' + topDrinker.drinks + ' sip' +
+        (topDrinker.drinks !== 1 ? 's' : '') + '. Keep it going!';
+    } else {
+      dom.game.roundSummaryText.textContent = 'Round ' + state.round + ' complete!';
+    }
 
-    spawnConfetti(50);
-    spawnFloatingEmojis(15);
+    if (celebrate) {
+      spawnConfetti(50);
+      spawnFloatingEmojis(15);
+    }
     saveState();
   }
 
   dom.game.nextRoundBtn.addEventListener('click', () => {
+    if (state.phase !== 'summary') return;
     state.round++;
     state.currentPlayerIndex = 0;
-    saveState();
     showPassPhase();
   });
 
@@ -542,26 +805,50 @@
   dom.taskhub.loginBtn.addEventListener('click', taskhubLogin);
   dom.taskhub.passcodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') taskhubLogin(); });
 
+  function getTaskHubTasks(player) {
+    const tasks = [...player.tasks];
+    const activePlayer = getCurrentPlayer();
+    const activeTask = state.phase === 'task' ? state.currentTask : null;
+
+    if (activePlayer && activePlayer.id === player.id && activeTask && activeTask.type === 'secret') {
+      const hasActiveRecord = tasks.some(task =>
+        task.status === 'pending' &&
+        task.taskIndex === activeTask._idx &&
+        task.text === activeTask.text
+      );
+      if (!hasActiveRecord) tasks.push(createTaskRecord(activeTask, 'pending'));
+    }
+
+    return tasks;
+  }
+
   function taskhubLogin() {
     const pin = dom.taskhub.passcodeInput.value.trim();
-    const player = state.players.find(p => p.passcode === pin);
-    if (!player) {
+    const matches = state.players.filter(player => player.passcode === pin);
+
+    if (matches.length !== 1) {
+      setMessage(
+        dom.taskhub.message,
+        matches.length > 1
+          ? 'That PIN belongs to more than one player. The host needs to use unique PINs.'
+          : 'PIN not recognised. Check the three digits and try again.'
+      );
       shakeElement(dom.taskhub.passcodeInput);
       return;
     }
 
+    const player = matches[0];
+    setMessage(dom.taskhub.message, '');
     dom.taskhub.loginSection.style.display = 'none';
     dom.taskhub.content.style.display = 'block';
-    dom.taskhub.playerName.textContent = `${player.name}'s Tasks`;
+    dom.taskhub.playerName.textContent = player.name + "'s Tasks";
 
-    const secrets = player.tasks.filter(t => t.type === 'secret');
-    const allDone = player.tasks.filter(t => t.status === 'done');
+    const tasks = getTaskHubTasks(player);
+    const secrets = tasks.filter(task => task.type === 'secret' && task.status !== 'done');
+    const allDone = tasks.filter(task => task.status === 'done');
 
-    // Show secret missions (completed ones to prove, pending ones to track)
     renderTaskList(dom.taskhub.pendingList, secrets, '🤫');
     dom.taskhub.pendingEmpty.style.display = secrets.length === 0 ? 'block' : 'none';
-
-    // Show all completed tasks
     renderTaskList(dom.taskhub.doneList, allDone, '✅');
     dom.taskhub.doneEmpty.style.display = allDone.length === 0 ? 'block' : 'none';
 
@@ -570,10 +857,21 @@
 
   function renderTaskList(ul, tasks, icon) {
     ul.innerHTML = '';
-    tasks.forEach(t => {
+
+    tasks.forEach(task => {
       const li = document.createElement('li');
-      const statusIcon = t.status === 'done' ? '✅' : t.status === 'skipped' ? '⏭️' : '⏳';
-      li.innerHTML = `<span class="task-icon">${icon}</span><span>${escapeHtml(t.text)}</span><span class="task-icon">${statusIcon}</span>`;
+      const taskIcon = document.createElement('span');
+      taskIcon.className = 'task-icon';
+      taskIcon.textContent = icon;
+
+      const taskText = document.createElement('span');
+      taskText.textContent = task.text;
+
+      const statusIcon = document.createElement('span');
+      statusIcon.className = 'task-icon';
+      statusIcon.textContent = task.status === 'done' ? '✅' : task.status === 'skipped' ? '⏭️' : '⏳';
+
+      li.append(taskIcon, taskText, statusIcon);
       ul.appendChild(li);
     });
   }
@@ -581,39 +879,75 @@
   dom.taskhub.logoutBtn.addEventListener('click', () => {
     dom.taskhub.loginSection.style.display = 'block';
     dom.taskhub.content.style.display = 'none';
+    setMessage(dom.taskhub.message, '');
   });
 
   // ─── Leaderboard ─────────────────────────────────────────────
   function renderLeaderboard() {
-    const sorted = [...state.players].sort((a, b) => b.drinks - a.drinks);
+    const sorted = state.players
+      .map((player, index) => ({ player, index }))
+      .sort((a, b) => b.player.drinks - a.player.drinks || a.index - b.index);
+
     dom.leaderboard.list.innerHTML = '';
 
-    sorted.forEach((p, i) => {
-      const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+    sorted.forEach(({ player }, position) => {
+      const rankClass = position === 0 ? 'gold' : position === 1 ? 'silver' : position === 2 ? 'bronze' : '';
+      const medal = position === 0 ? '🥇' : position === 1 ? '🥈' : position === 2 ? '🥉' : String(position + 1);
+
       const card = document.createElement('div');
       card.className = 'lb-card glass';
-      card.innerHTML = `
-        <div class="lb-rank ${rankClass}">${medal}</div>
-        <div class="lb-info">
-          <div class="lb-name">${escapeHtml(p.name)}</div>
-          <div class="lb-drinks">${p.drinks} sip${p.drinks !== 1 ? 's' : ''} • ${p.tasks.filter(t=>t.status==='done').length} tasks done</div>
-        </div>
-        <div class="lb-controls">
-          <button class="btn-drink" data-player="${escapeHtml(p.name)}" data-action="minus" aria-label="Remove drink">−</button>
-          <span class="lb-count">${p.drinks}</span>
-          <button class="btn-drink" data-player="${escapeHtml(p.name)}" data-action="plus" aria-label="Add drink">+</button>
-        </div>
-      `;
+
+      const rank = document.createElement('div');
+      rank.className = 'lb-rank ' + rankClass;
+      rank.textContent = medal;
+
+      const info = document.createElement('div');
+      info.className = 'lb-info';
+
+      const name = document.createElement('div');
+      name.className = 'lb-name';
+      name.textContent = player.name;
+
+      const drinks = document.createElement('div');
+      drinks.className = 'lb-drinks';
+      const completedCount = player.tasks.filter(task => task.status === 'done').length;
+      drinks.textContent = player.drinks + ' sip' + (player.drinks !== 1 ? 's' : '') +
+        ' • ' + completedCount + ' tasks done';
+      info.append(name, drinks);
+
+      const controls = document.createElement('div');
+      controls.className = 'lb-controls';
+
+      const minus = document.createElement('button');
+      minus.type = 'button';
+      minus.className = 'btn-drink';
+      minus.dataset.playerId = player.id;
+      minus.dataset.action = 'minus';
+      minus.setAttribute('aria-label', 'Remove a sip for ' + player.name);
+      minus.textContent = '−';
+
+      const count = document.createElement('span');
+      count.className = 'lb-count';
+      count.textContent = String(player.drinks);
+
+      const plus = document.createElement('button');
+      plus.type = 'button';
+      plus.className = 'btn-drink';
+      plus.dataset.playerId = player.id;
+      plus.dataset.action = 'plus';
+      plus.setAttribute('aria-label', 'Add a sip for ' + player.name);
+      plus.textContent = '+';
+
+      controls.append(minus, count, plus);
+      card.append(rank, info, controls);
       dom.leaderboard.list.appendChild(card);
     });
 
-    // Bind drink buttons
     dom.leaderboard.list.querySelectorAll('.btn-drink').forEach(btn => {
       btn.addEventListener('click', () => {
-        const playerName = btn.dataset.player;
-        const player = state.players.find(p => p.name === playerName);
+        const player = state.players.find(item => item.id === btn.dataset.playerId);
         if (!player) return;
+
         if (btn.dataset.action === 'plus') {
           player.drinks++;
         } else {
@@ -626,6 +960,12 @@
   }
 
   // ─── Utilities ───────────────────────────────────────────────
+  function setMessage(element, message) {
+    if (!element) return;
+    element.textContent = message;
+    element.hidden = !message;
+  }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -633,29 +973,36 @@
   }
 
   function shakeElement(el) {
+    if (!el) return;
     el.classList.add('shake');
-    setTimeout(() => el.classList.remove('shake'), 400);
+    setTimeout(() => el.classList.remove('shake'), reducedMotionEnabled() ? 0 : 400);
   }
 
   // ─── Init ────────────────────────────────────────────────────
+  function restorePillStates() {
+    [
+      [dom.setup.difficultyPills, state.settings.difficulty],
+      [dom.setup.adventurePills, state.settings.adventure],
+    ].forEach(([container, selectedValue]) => {
+      container.querySelectorAll('.pill').forEach(pill => {
+        const active = pill.dataset.value === selectedValue;
+        pill.classList.toggle('active', active);
+        pill.setAttribute('aria-pressed', String(active));
+      });
+    });
+  }
+
   function init() {
     const restored = loadState();
+    renderPlayerList();
+    restorePillStates();
 
     if (restored && state.gameStarted && state.players.length >= 2) {
-      // Restore in-progress game
-      renderPlayerList();
       startGame();
       renderLeaderboard();
-    } else if (restored && state.players.length > 0) {
-      // Restore setup with players added
-      renderPlayerList();
-      // Restore pill states
-      dom.setup.difficultyPills.querySelectorAll('.pill').forEach(p => {
-        p.classList.toggle('active', p.dataset.value === state.settings.difficulty);
-      });
-      dom.setup.adventurePills.querySelectorAll('.pill').forEach(p => {
-        p.classList.toggle('active', p.dataset.value === state.settings.adventure);
-      });
+    } else {
+      dom.nav.bar.style.display = 'none';
+      showScreen('setup');
     }
   }
 
