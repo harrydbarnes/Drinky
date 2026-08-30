@@ -355,6 +355,13 @@ input::placeholder { color: var(--text-muted); }
 
 /* ---------- Pill Selector ---------- */
 .setting-group { margin-bottom: 16px; }
+.settings-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin-top: 14px;
+  text-align: center;
+}
 .setting-group:last-child { margin-bottom: 0; }
 .setting-group label {
   display: block;
